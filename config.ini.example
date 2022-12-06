@@ -1,0 +1,5 @@
+[DEFAULT]
+host = https://api2.nicehash.com
+organization_id = # Get this from nicehash profile
+key = # Nicehash API key
+secret = # Nicehash API secret
