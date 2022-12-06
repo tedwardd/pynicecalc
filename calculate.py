@@ -36,7 +36,7 @@ def get_nh_data(algorithm):
     return req_data
 
 
-def get_nh_wtm_data(algorithm):
+def get_nh_wtm_data(algorithm, coin_filter):
     raw_data = (
         requests.get(
             "https://whattomine.com/asic.json?scryptf=true&factor[scrypt_hash_rate]=1000.0&factor[scrypt_power]=0.0&factor[cost]=0.1&factor[cost_currency]=USD&sort=Profit24&volume=0&revenue=24h&factor[exchanges][]=binance&dataset=Main"
@@ -45,9 +45,13 @@ def get_nh_wtm_data(algorithm):
         .get("coins")
     )
     coins = raw_data.keys()
-    for coin in coins:
-        if "NICEHASH" in raw_data.get(coin).get("tag"):
-            return raw_data.get(coin).get("estimated_rewards")
+    rev_sum = 0.0
+    for i in coin_filter:
+        for c in coins:
+            if i.upper() in raw_data.get(c).get("tag"):
+                rev_sum += float(raw_data.get(c).get("btc_revenue"))
+
+    return rev_sum
 
 
 def get_optimal(algo):
@@ -67,14 +71,17 @@ signal.signal(signal.SIGINT, sighandler)
 @click.option(
     "--algorithm", "-a", "algorithm", default=None, multiple=True, required=True
 )
+@click.option(
+    "--coin", "-c", "coin", required=False, default=["nicehash"], multiple=True
+)
 # The way we're implementing the watch flag feels like a hack
 # It is an optional arg that, if not provided, has a value of 0 which is interpreted as "don't loop"
 # But if you provide the -w flag it then gets a "default" value of 5 unless you provide your own integer
 # after the flag (eg. `-w` would use a value of 5 and `-w 10` would use a value of 10.)
 @click.option("--watch", "-w", is_flag=False, flag_value=5, default=0)
-@click.option("--config", "-c", "config_file", required=False, default="./config.ini")
-@click.option("--manage", "-m", is_flag=False, default=None, required=False)
-def run(algorithm, watch, config_file, manage):
+@click.option("--config", "config_file", required=False, default="./config.ini")
+@click.option("--manage", "-m", is_flag=True, required=False)
+def run(algorithm, coin, watch, config_file, manage):
 
     # Check config path exists
     config = Path(config_file)
@@ -109,7 +116,7 @@ def run(algorithm, watch, config_file, manage):
             optimal = float(get_optimal(i.get("algorithm")))
 
             # Get the current profitability from WTM for the same algo and cast it to a float too
-            wtm_profitability = float(get_nh_wtm_data(i.get("algorithm")))
+            wtm_profitability = float(get_nh_wtm_data(i.get("algorithm"), coin))
 
             # Print the optimal, profitability
             print(f"Optimal: {optimal}")
@@ -119,14 +126,14 @@ def run(algorithm, watch, config_file, manage):
             perc_profit = round((1 - (optimal / wtm_profitability)) * 100, 2)
             print(f"Expected Profit: {perc_profit}%")
 
-        if len(managed_orders) > 0:
+        if len(managed_orders) > 0 and manage:
             for order_id in managed_orders:
                 if not config.getboolean(order_id, "manage"):
                     continue
                 order_details = private_api.request(
                     # Get the order details (requires manual request using private_api)
                     "GET",
-                    f"main/api/v2/hashpower/order/{order_id}",
+                    f"/main/api/v2/hashpower/order/{order_id}",
                     "",
                     "",
                 )
@@ -135,7 +142,54 @@ def run(algorithm, watch, config_file, manage):
                 if order_details.get("status").get("code") != "ACTIVE":
                     continue
 
-                order_price = order_details.get("price")
+                order_price = float(order_details.get("price"))
+                order_algo = order_details.get("algorithm").get("algorithm")
+                order_limit = order_details.get("limit")
+                print(f"Current Order Price: {order_price}")
+                nh_algos = requests.get(
+                    "https://api2.nicehash.com/main/api/v2/mining/algorithms"
+                ).json()
+                buy_info = requests.get(
+                    "https://api2.nicehash.com/main/api/v2/public/buy/info"
+                ).json()
+                for i in buy_info.get("miningAlgorithms"):
+                    if i.get("name").upper() == order_algo:
+                        step = abs(float(i.get("down_step")))
+                        break
+                if order_price < optimal and order_price < wtm_profitability:
+                    new_price = round(order_price + step, 4)
+                    print(f"Calculated new price: {new_price}")
+                    if new_price < wtm_profitability:
+                        try:
+                            private_api.set_price_and_limit_hashpower_order(
+                                order_id, new_price, order_limit, order_algo, nh_algos
+                            )
+                        except Exception as e:
+                            e = str(e)
+                if order_price > wtm_profitability:
+                    try:
+                        private_api.set_price_and_limit_hashpower_order(
+                            order_id,
+                            order_price - step,
+                            order_limit,
+                            order_algo,
+                            nh_algos,
+                        )
+                    except Exception as e:
+                        cooldown = int(str(e).split(" ")[-1].split('"')[0]) + 1
+                        click.secho(
+                            f"Waiting for stepdown timer to try again. Sleeping {cooldown} seconds",
+                            bold=True,
+                            fg="green",
+                        )
+                        time.sleep(cooldown)
+                        private_api.set_price_and_limit_hashpower_order(
+                            order_id,
+                            order_price - step,
+                            order_limit,
+                            order_algo,
+                            nh_algos,
+                        )
 
         if watch:
             time.sleep(watch)
