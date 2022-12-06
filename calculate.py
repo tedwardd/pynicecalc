@@ -49,7 +49,7 @@ def get_nh_wtm_data(algorithm, coin_filter):
     for i in coin_filter:
         for c in coins:
             if i.upper() in raw_data.get(c).get("tag"):
-                rev_sum += float(raw_data.get(c).get("btc_revenue"))
+                rev_sum += float(raw_data.get(c).get("btc_revenue24"))
 
     return rev_sum
 
