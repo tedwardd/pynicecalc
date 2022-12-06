@@ -105,8 +105,10 @@ def run(algorithm, coin, watch, config_file, manage):
     )
 
     managed_orders = config.sections()
+    rounds_out_of_profit = 0
 
     while True:
+        out_width_array = []
         # Get the Nicehash data about the algorithms requested
         nh_data = get_nh_data(algorithm)
 
@@ -119,12 +121,25 @@ def run(algorithm, coin, watch, config_file, manage):
             wtm_profitability = float(get_nh_wtm_data(i.get("algorithm"), coin))
 
             # Print the optimal, profitability
-            print(f"Optimal: {optimal}")
-            print(f"Profit/GH: {wtm_profitability}")
+            msg = f"Optimal: {optimal}"
+            out_width_array.append(len(msg))
+            print(msg)
+            msg = f"Profit/GH: {wtm_profitability}"
+            out_width_array.append(len(msg))
+            print(msg)
 
             # Calculate Expected profit percentage and print that too
             perc_profit = round((1 - (optimal / wtm_profitability)) * 100, 2)
-            print(f"Expected Profit: {perc_profit}%")
+            if perc_profit > 0.0:
+                color = "green"
+                rounds_out_of_profit = 0
+            else:
+                color = "red"
+                rounds_out_of_profit += 1
+            msg = f"Theoretical Profit: {perc_profit}%"
+            print(str(rounds_out_of_profit * watch) + " seconds out of profit")
+            out_width_array.append(len(msg))
+            click.secho(msg, fg=color)
 
         if len(managed_orders) > 0 and manage:
             for order_id in managed_orders:
@@ -145,7 +160,15 @@ def run(algorithm, coin, watch, config_file, manage):
                 order_price = float(order_details.get("price"))
                 order_algo = order_details.get("algorithm").get("algorithm")
                 order_limit = order_details.get("limit")
-                print(f"Current Order Price: {order_price}")
+                msg = f"Current Order Price: {order_price}"
+                out_width_array.append(len(msg))
+                print(msg)
+                exp_perc_profit = round(
+                    (1 - (order_price / wtm_profitability)) * 100, 2
+                )
+                msg = f"Expected Profit: {exp_perc_profit}%"
+                out_width_array.append(len(msg))
+                print(msg)
                 nh_algos = requests.get(
                     "https://api2.nicehash.com/main/api/v2/mining/algorithms"
                 ).json()
@@ -158,7 +181,9 @@ def run(algorithm, coin, watch, config_file, manage):
                         break
                 if order_price < optimal and order_price < wtm_profitability:
                     new_price = round(order_price + step, 4)
-                    print(f"Calculated new price: {new_price}")
+                    msg = f"Calculated new price: {new_price}"
+                    out_width_array.append(len(msg))
+                    print(msg)
                     if new_price < wtm_profitability:
                         try:
                             private_api.set_price_and_limit_hashpower_order(
@@ -177,8 +202,10 @@ def run(algorithm, coin, watch, config_file, manage):
                         )
                     except Exception as e:
                         cooldown = int(str(e).split(" ")[-1].split('"')[0]) + 1
+                        msg = f"Waiting for stepdown timer to try again. Sleeping {cooldown} seconds"
+                        out_width_array.append(len(msg))
                         click.secho(
-                            f"Waiting for stepdown timer to try again. Sleeping {cooldown} seconds",
+                            msg,
                             bold=True,
                             fg="green",
                         )
@@ -191,6 +218,7 @@ def run(algorithm, coin, watch, config_file, manage):
                             nh_algos,
                         )
 
+        print("-" * max(out_width_array))
         if watch:
             time.sleep(watch)
 
