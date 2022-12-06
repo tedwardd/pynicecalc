@@ -12,6 +12,33 @@ import time
 from pathlib import Path
 from nicehash import nicehash
 
+# A cheap way to lookup the values for wtm profitability requests
+wtm_query_map = {
+    "sha256": "sha256f=true&factor%5Bsha256_hr%5D=1000000.0&factor%5Bsha256_p%5D=0.0",
+    "scrypt": "scryptf=true&factor%5Bscrypt_hash_rate%5D=0.205&factor%5Bscrypt_power%5D=220.0",
+    "x11": "x11f=true&factor%5Bx11_hr%5D=1286.0&factor%5Bx11_p%5D=3148.0",
+    "sia": "siaf=true&factor%5Bsia_hr%5D=17.0&factor%5Bsia_p%5D=3300.0",
+    "quark": "qkf=true&factor%5Bqk_hr%5D=28.0&factor%5Bqk_p%5D=800.0",
+    "qubit": "qbf=true&factor%5Bqb_hr%5D=28.0&factor%5Bqb_p%5D=850.0",
+    "myr-groestl": "mgf=true&factor%5Bmg_hr%5D=28.0&factor%5Bmg_p%5D=350.0",
+    "skein": "skf=true&factor%5Bsk_hr%5D=14.0&factor%5Bsk_p%5D=300.0",
+    "lbry": "lbryf=true&factor%5Blbry_hr%5D=1620.0&factor%5Blbry_p%5D=1450.0",
+    "blake": "bk14f=true&factor%5Bbk14_hr%5D=52.0&factor%5Bbk14_p%5D=2200.0",
+    "cryptonight": "cnf=true&factor%5Bcn_hr%5D=360.0&factor%5Bcn_p%5D=720.0",
+    "cryptonightstc": "cstf=true&factor%5Bcst_hr%5D=13.9&factor%5Bcst_p%5D=65.0",
+    "equihash": "eqf=true&factor%5Beq_hr%5D=420.0&factor%5Beq_p%5D=1510.0",
+    "lyra2rev2": "lrev2f=true&factor%5Blrev2_hr%5D=13.0&factor%5Blrev2_p%5D=1100.0",
+    "bcd": "bcdf=true&factor%5Bbcd_hr%5D=278.0&factor%5Bbcd_p%5D=708.0",
+    "lyra2z": "l2zf=true&factor%5Bl2z_hr%5D=93.0&factor%5Bl2z_p%5D=708.0",
+    "keccak": "kecf=true&factor%5Bkec_hr%5D=34.9&factor%5Bkec_p%5D=708.0",
+    "groestl": "grof=true&factor%5Bgro_hr%5D=28.0&factor%5Bgro_p%5D=450.0",
+    "eaglesong": "esgf=true&factor%5Besg_hr%5D=1050.0&factor%5Besg_p%5D=215.0",
+    "cuckatoo31": "ct31f=true&factor%5Bct31_hr%5D=126.0&factor%5Bct31_p%5D=2800.0",
+    "cuckatoo32": "ct32f=true&factor%5Bct32_hr%5D=36.0&factor%5Bct32_p%5D=2800.0",
+    "kadena": "kdf=true&factor%5Bkd_hr%5D=40.2&factor%5Bkd_p%5D=3350.0",
+    "handshake": "hkf=true&factor%5Bhk_hr%5D=4.3&factor%5Bhk_p%5D=3250.0"
+}
+
 
 def sighandler(signum, frame):
     sys.exit(0)
@@ -37,12 +64,13 @@ def get_nh_data(algorithm):
 
 
 def get_nh_wtm_data(algorithm, coin_filter):
+    req_base = "https://whattomine.com/asic.json?"
+    query = wtm_query_map.get(algorithm.lower())
+    # There's a bunch of other params we don't both adjusting with flags yet, just jam them in here for now
+    boilerplate_params = "factor%5Bcost%5D=0.1&factor%5Bcost_currency%5D=USD&sort=Profit&volume=0&revenue=24hfactor%5Bexchanges%5D%5B%5D=binance&dataset=Main"
+    
     raw_data = (
-        requests.get(
-            "https://whattomine.com/asic.json?scryptf=true&factor[scrypt_hash_rate]=1000.0&factor[scrypt_power]=0.0&factor[cost]=0.1&factor[cost_currency]=USD&sort=Profit24&volume=0&revenue=24h&factor[exchanges][]=binance&dataset=Main"
-        )
-        .json()
-        .get("coins")
+        requests.get( req_base + query + "&" + boilerplate_params).json().get("coins")
     )
     coins = raw_data.keys()
     rev_sum = 0.0
