@@ -278,6 +278,8 @@ def run(algorithm, coin, watch, config_file, manage):
 
                     seconds_without_work = 0
 
+                # If we have workers but our price is higher than optimal lower it by, at most, the value of $step.
+                # If $step were to take us below optimal, lower it to the optimal but never lower.
                 if (
                     order_price < wtm_profitability
                     and exp_perc_profit < perc_profit
@@ -285,6 +287,8 @@ def run(algorithm, coin, watch, config_file, manage):
                     and cooldown <= 0
                 ):
                     new_price = round(order_price - step, 4)
+                    if new_price < optimal:
+                        new_price = optimal
                     msg = f"Calculated new price: {new_price}"
 
                     out_width_array.append(len(msg))
