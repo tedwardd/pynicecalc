@@ -8,36 +8,14 @@ import requests
 import signal
 import sys
 import time
+import json
 
 from pathlib import Path
 from nicehash import nicehash
 
 # A cheap way to lookup the values for wtm profitability requests
-wtm_query_map = {
-    "sha256": "sha256f=true&factor%5Bsha256_hr%5D=1000000.0&factor%5Bsha256_p%5D=0.0",
-    "scrypt": "scryptf=true&factor%5Bscrypt_hash_rate%5D=0.205&factor%5Bscrypt_power%5D=220.0",
-    "x11": "x11f=true&factor%5Bx11_hr%5D=1286.0&factor%5Bx11_p%5D=3148.0",
-    "sia": "siaf=true&factor%5Bsia_hr%5D=17.0&factor%5Bsia_p%5D=3300.0",
-    "quark": "qkf=true&factor%5Bqk_hr%5D=28.0&factor%5Bqk_p%5D=800.0",
-    "qubit": "qbf=true&factor%5Bqb_hr%5D=28.0&factor%5Bqb_p%5D=850.0",
-    "myr-groestl": "mgf=true&factor%5Bmg_hr%5D=28.0&factor%5Bmg_p%5D=350.0",
-    "skein": "skf=true&factor%5Bsk_hr%5D=14.0&factor%5Bsk_p%5D=300.0",
-    "lbry": "lbryf=true&factor%5Blbry_hr%5D=1620.0&factor%5Blbry_p%5D=1450.0",
-    "blake": "bk14f=true&factor%5Bbk14_hr%5D=52.0&factor%5Bbk14_p%5D=2200.0",
-    "cryptonight": "cnf=true&factor%5Bcn_hr%5D=360.0&factor%5Bcn_p%5D=720.0",
-    "cryptonightstc": "cstf=true&factor%5Bcst_hr%5D=13.9&factor%5Bcst_p%5D=65.0",
-    "equihash": "eqf=true&factor%5Beq_hr%5D=420.0&factor%5Beq_p%5D=1510.0",
-    "lyra2rev2": "lrev2f=true&factor%5Blrev2_hr%5D=13.0&factor%5Blrev2_p%5D=1100.0",
-    "bcd": "bcdf=true&factor%5Bbcd_hr%5D=278.0&factor%5Bbcd_p%5D=708.0",
-    "lyra2z": "l2zf=true&factor%5Bl2z_hr%5D=93.0&factor%5Bl2z_p%5D=708.0",
-    "keccak": "kecf=true&factor%5Bkec_hr%5D=34.9&factor%5Bkec_p%5D=708.0",
-    "groestl": "grof=true&factor%5Bgro_hr%5D=28.0&factor%5Bgro_p%5D=450.0",
-    "eaglesong": "esgf=true&factor%5Besg_hr%5D=1050.0&factor%5Besg_p%5D=215.0",
-    "cuckatoo31": "ct31f=true&factor%5Bct31_hr%5D=126.0&factor%5Bct31_p%5D=2800.0",
-    "cuckatoo32": "ct32f=true&factor%5Bct32_hr%5D=36.0&factor%5Bct32_p%5D=2800.0",
-    "kadena": "kdf=true&factor%5Bkd_hr%5D=40.2&factor%5Bkd_p%5D=3350.0",
-    "handshake": "hkf=true&factor%5Bhk_hr%5D=4.3&factor%5Bhk_p%5D=3250.0",
-}
+with open("algo_query_map.json", "r") as f:
+    query_map = json.load(f)
 
 
 def sighandler(signum, frame):
@@ -64,28 +42,36 @@ def get_nh_data(algorithm):
 
 
 def get_nh_wtm_data(algorithm, coin_filter):
-    req_base = "https://whattomine.com/asic.json?"
-    query = wtm_query_map.get(algorithm.lower())
-    # There's a bunch of other params we don't both adjusting with flags yet, just jam them in here for now
-    boilerplate_params = "factor%5Bcost%5D=0.1&factor%5Bcost_currency%5D=USD&sort=Profit&volume=0&revenue=24hfactor%5Bexchanges%5D%5B%5D=binance&dataset=Main"
-
+    query = query_map.get(algorithm.lower()).get("url")
     raw_data = (
-        requests.get(req_base + query + "&" + boilerplate_params).json().get("coins")
+        requests.get(query).json().get(query_map.get(algorithm.lower()).get("key"))
     )
-    coins = raw_data.keys()
+    coins = list(raw_data.keys())
     rev_sum = 0.0
-    for i in coin_filter:
-        for c in coins:
-            if i.upper() in raw_data.get(c).get("tag"):
-                rev_sum += float(raw_data.get(c).get("btc_revenue24"))
+    if coin_filter == "abcxyzfakecoin123":
+        return float(raw_data.get(coins[0]).get("btc_revenue24"))
+    for c in coins:
+        if coin_filter.upper() in raw_data.get(c).get("tag"):
+            rev_sum += float(raw_data.get(c).get("btc_revenue24"))
 
     return rev_sum
 
 
 def get_optimal(algo):
+    market = "USA"
+    if (
+        market
+        not in requests.get(
+            f"https://api2.nicehash.com/main/api/v2/hashpower/orderBook?algorithm={algo}"
+        )
+        .json()
+        .get("stats")
+        .keys()
+    ):
+        market = "EU"
     return (
         requests.get(
-            f"https://api2.nicehash.com/main/api/v2/hashpower/order/price?market=USA&algorithm={algo}"
+            f"https://api2.nicehash.com/main/api/v2/hashpower/order/price?market={market}&algorithm={algo}"
         )
         .json()
         .get("price")
@@ -108,9 +94,7 @@ signal.signal(signal.SIGINT, sighandler)
 @click.option(
     "--algorithm", "-a", "algorithm", default=None, multiple=True, required=True
 )
-@click.option(
-    "--coin", "-c", "coin", required=False, default=["nicehash"], multiple=True
-)
+@click.option("--coin", "-c", "coin", required=False, default=None, multiple=False)
 # The way we're implementing the watch flag feels like a hack
 # It is an optional arg that, if not provided, has a value of 0 which is interpreted as "don't loop"
 # But if you provide the -w flag it then gets a "default" value of 5 unless you provide your own integer
@@ -162,19 +146,24 @@ def run(algorithm, coin, watch, config_file, manage):
         for i in nh_data:
             # Get the optimal order price for our algo and cast it to a float
             optimal = float(get_optimal(i.get("algorithm")))
+            marketFactor = i.get("displayMarketFactor")
 
             # Get the current profitability from WTM for the same algo and cast it to a float too
+            if coin is None:
+                coin = "abcxyzfakecoin123"
             wtm_profitability = float(get_nh_wtm_data(i.get("algorithm"), coin))
 
             # Print the optimal, profitability
             msg = f"Optimal: {optimal}"
             out_width_array.append(len(msg))
             print(msg)
-            msg = f"Profit/GH: {wtm_profitability}"
+            msg = f"Profit/{marketFactor}: {wtm_profitability}"
             out_width_array.append(len(msg))
             print(msg)
 
             # Calculate Expected profit percentage and print that too
+            print(optimal)
+            print(wtm_profitability)
             perc_profit = round((1 - (optimal / wtm_profitability)) * 100, 2)
             if perc_profit > 0.0:
                 color = "green"
@@ -183,7 +172,8 @@ def run(algorithm, coin, watch, config_file, manage):
                 color = "red"
                 rounds_out_of_profit += 1
             msg = f"Theoretical Profit: {perc_profit}%"
-            print(str(rounds_out_of_profit * watch) + " seconds out of profit")
+            if manage:
+                print(str(rounds_out_of_profit * watch) + " seconds out of profit")
             out_width_array.append(len(msg))
             click.secho(msg, fg=color)
 
@@ -251,7 +241,7 @@ def run(algorithm, coin, watch, config_file, manage):
                 if (
                     order_price > wtm_profitability
                     or order_price > optimal
-                    and cooldown == 0
+                    and cooldown <= 0
                 ):
                     try:
                         private_api.set_price_and_limit_hashpower_order(
@@ -292,7 +282,7 @@ def run(algorithm, coin, watch, config_file, manage):
                     order_price < wtm_profitability
                     and exp_perc_profit < perc_profit
                     and seconds_with_work > 300
-                    and cooldown == 0
+                    and cooldown <= 0
                 ):
                     new_price = round(order_price - step, 4)
                     msg = f"Calculated new price: {new_price}"
@@ -312,18 +302,18 @@ def run(algorithm, coin, watch, config_file, manage):
                     seconds_with_work = 0
                     cooldown = 600
 
-        if accepted_speed == 0.0:
-            seconds_without_work += watch
-            seconds_with_work = 0
-            print(accepted_speed)
-            print(
-                f"{seconds_without_work} seconds since we've had accepted shares, will increase order price in {without_work_threshold - seconds_without_work} seconds"
-            )
-        else:
-            seconds_without_work = 0
-            seconds_with_work += watch
-            print(f"Work accepted for {seconds_with_work} seconds at current price")
-            print(f"Cooldown Remaining: {cooldown}s")
+            if accepted_speed == 0.0:
+                seconds_without_work += watch
+                seconds_with_work = 0
+                print(accepted_speed)
+                print(
+                    f"{seconds_without_work} seconds since we've had accepted shares, will increase order price in {without_work_threshold - seconds_without_work} seconds"
+                )
+            else:
+                seconds_without_work = 0
+                seconds_with_work += watch
+                print(f"Work accepted for {seconds_with_work} seconds at current price")
+                print(f"Cooldown Remaining: {cooldown}s")
 
         cooldown -= watch
 
