@@ -36,7 +36,7 @@ wtm_query_map = {
     "cuckatoo31": "ct31f=true&factor%5Bct31_hr%5D=126.0&factor%5Bct31_p%5D=2800.0",
     "cuckatoo32": "ct32f=true&factor%5Bct32_hr%5D=36.0&factor%5Bct32_p%5D=2800.0",
     "kadena": "kdf=true&factor%5Bkd_hr%5D=40.2&factor%5Bkd_p%5D=3350.0",
-    "handshake": "hkf=true&factor%5Bhk_hr%5D=4.3&factor%5Bhk_p%5D=3250.0"
+    "handshake": "hkf=true&factor%5Bhk_hr%5D=4.3&factor%5Bhk_p%5D=3250.0",
 }
 
 
@@ -68,9 +68,9 @@ def get_nh_wtm_data(algorithm, coin_filter):
     query = wtm_query_map.get(algorithm.lower())
     # There's a bunch of other params we don't both adjusting with flags yet, just jam them in here for now
     boilerplate_params = "factor%5Bcost%5D=0.1&factor%5Bcost_currency%5D=USD&sort=Profit&volume=0&revenue=24hfactor%5Bexchanges%5D%5B%5D=binance&dataset=Main"
-    
+
     raw_data = (
-        requests.get( req_base + query + "&" + boilerplate_params).json().get("coins")
+        requests.get(req_base + query + "&" + boilerplate_params).json().get("coins")
     )
     coins = raw_data.keys()
     rev_sum = 0.0
@@ -90,6 +90,15 @@ def get_optimal(algo):
         .json()
         .get("price")
     )
+
+
+def raise_order(private_api, order_id, new_price, order_limit, order_algo, nh_algos):
+    try:
+        private_api.set_price_and_limit_hashpower_order(
+            order_id, new_price, order_limit, order_algo, nh_algos
+        )
+    except Exception as e:
+        e = str(e)
 
 
 signal.signal(signal.SIGINT, sighandler)
@@ -134,6 +143,15 @@ def run(algorithm, coin, watch, config_file, manage):
 
     managed_orders = config.sections()
     rounds_out_of_profit = 0
+
+    seconds_with_work = 0
+    seconds_without_work = 0
+    # Artificially slow down the rate of raising our order price to be more in-line with the speed at which we can
+    # lower it again. This should help smooth out spikes but we might need to make this a user parameter in the future
+    without_work_threshold = 600
+
+    # Nicehash only allows us to lower the price once every 10 minutes
+    cooldown = 0
 
     while True:
         out_width_array = []
@@ -207,44 +225,107 @@ def run(algorithm, coin, watch, config_file, manage):
                     if i.get("name").upper() == order_algo:
                         step = abs(float(i.get("down_step")))
                         break
-                if order_price < optimal and order_price < wtm_profitability:
+
+                accepted_speed = float(order_details.get("acceptedCurrentSpeed"))
+
+                # Check if order is lower than optimal and lower than profitability
+                # Raise the price to be closer to optimal if it's below it
+                if (
+                    order_price < optimal and accepted_speed == 0.0
+                ) and order_price < wtm_profitability:
                     new_price = round(order_price + step, 4)
                     msg = f"Calculated new price: {new_price}"
                     out_width_array.append(len(msg))
                     print(msg)
                     if new_price < wtm_profitability:
-                        try:
-                            private_api.set_price_and_limit_hashpower_order(
-                                order_id, new_price, order_limit, order_algo, nh_algos
-                            )
-                        except Exception as e:
-                            e = str(e)
-                if order_price > wtm_profitability:
+                        raise_order(
+                            private_api,
+                            order_id,
+                            new_price,
+                            order_limit,
+                            order_algo,
+                            nh_algos,
+                        )
+
+                # If the order price goes above the profitable, try to lower it and start a counter to cancel it (not yet implemented)
+                if (
+                    order_price > wtm_profitability
+                    or order_price > optimal
+                    and cooldown == 0
+                ):
                     try:
                         private_api.set_price_and_limit_hashpower_order(
                             order_id,
-                            order_price - step,
+                            round(order_price - step, 4),
                             order_limit,
                             order_algo,
                             nh_algos,
                         )
                     except Exception as e:
                         cooldown = int(str(e).split(" ")[-1].split('"')[0]) + 1
-                        msg = f"Waiting for stepdown timer to try again. Sleeping {cooldown} seconds"
                         out_width_array.append(len(msg))
-                        click.secho(
-                            msg,
-                            bold=True,
-                            fg="green",
-                        )
-                        time.sleep(cooldown)
-                        private_api.set_price_and_limit_hashpower_order(
+
+                # If we have an order that's in profit but have waited the "without_work_threshold"
+                # duration and still have no accepted work, raise the price
+                if (
+                    order_price < wtm_profitability
+                    and exp_perc_profit > perc_profit
+                    and seconds_without_work > without_work_threshold
+                ):
+                    new_price = round(order_price + step, 4)
+                    msg = f"Calculated new price: {new_price}"
+                    out_width_array.append(len(msg))
+                    print(msg)
+                    if new_price < wtm_profitability:
+                        raise_order(
+                            private_api,
                             order_id,
-                            order_price - step,
+                            new_price,
                             order_limit,
                             order_algo,
                             nh_algos,
                         )
+
+                    seconds_without_work = 0
+
+                if (
+                    order_price < wtm_profitability
+                    and exp_perc_profit < perc_profit
+                    and seconds_with_work > 300
+                    and cooldown == 0
+                ):
+                    new_price = round(order_price - step, 4)
+                    msg = f"Calculated new price: {new_price}"
+
+                    out_width_array.append(len(msg))
+                    print(msg)
+                    if new_price < wtm_profitability:
+                        raise_order(
+                            private_api,
+                            order_id,
+                            new_price,
+                            order_limit,
+                            order_algo,
+                            nh_algos,
+                        )
+
+                    seconds_with_work = 0
+                    cooldown = 600
+
+        if accepted_speed == 0.0:
+            seconds_without_work += watch
+            seconds_with_work = 0
+            print(accepted_speed)
+            print(
+                f"{seconds_without_work} seconds since we've had accepted shares, will increase order price in {without_work_threshold - seconds_without_work} seconds"
+            )
+        else:
+            seconds_without_work = 0
+            seconds_with_work += watch
+            print(f"Work accepted for {seconds_with_work} seconds at current price")
+            print(f"Cooldown Remaining: {cooldown}s")
+
+        cooldown -= watch
 
         print("-" * max(out_width_array))
         if watch:
