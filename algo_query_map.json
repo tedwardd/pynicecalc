@@ -1,58 +1,83 @@
 {
     "sha256": {
-        "url": "https://whattomine.com/asic.json?sha256f=true&factor%5Bsha256_hr%5D=1000000.0&factor%5Bsha256_p%5D=0.0",
+        "url": "https://whattomine.com/asic.json?sha256f=true&factor%5Bsha256_hr%5D=1000000.0&factor%5Bsha256_p%5D=0.0&sort=Profit24",
         "key": "coins"
     },
     "scrypt": {
-        "url": "https://whattomine.com/asic.json?scryptf=true&factor%5Bscrypt_hash_rate%5D=1000.0&factor%5Bscrypt_power%5D=0.0",
+        "url": "https://whattomine.com/asic.json?scryptf=true&factor%5Bscrypt_hash_rate%5D=1000.0&factor%5Bscrypt_power%5D=0.0&sort=Profit24",
         "key": "coins"
     },
     "x11": {
-        "url": "https://whattomine.com/asic.json?x11f=true&factor%5Bx11_hr%5D=1000000.0&factor%5Bx11_p%5D=0.0",
+        "url": "https://whattomine.com/asic.json?x11f=true&factor%5Bx11_hr%5D=1000000.0&factor%5Bx11_p%5D=0.0&sort=Profit24",
         "key": "coins"
     },
     "quark": {
-        "url": "https://whattomine.com/asic.json?qkf=true&factor%5Bqk_hr%5D=1000.0&factor%5Bqk_p%5D=0.0",
+        "url": "https://whattomine.com/asic.json?qkf=true&factor%5Bqk_hr%5D=1000.0&factor%5Bqk_p%5D=0.0&sort=Profit24",
         "key": "coins"
     },
     "qubit": {
-        "url": "https://whattomine.com/asic.json?qbf=true&factor%5Bqb_hr%5D=1000.0&factor%5Bqb_p%5D=0.0",
+        "url": "https://whattomine.com/asic.json?qbf=true&factor%5Bqb_hr%5D=1000.0&factor%5Bqb_p%5D=0.0&sort=Profit24",
         "key": "coins"
     },
     "lbry": {
-        "url": "https://whattomine.com/asic.json?lbry=true&factor%5Blbry_hr%5D=1000000.0&factor%5Blbry_p%5D=0.0",
+        "url": "https://whattomine.com/asic.json?lbry=true&factor%5Blbry_hr%5D=1000000.0&factor%5Blbry_p%5D=0.0&sort=Profit24",
         "key": "coins"
     },
     "equihash": {
-        "url": "https://whattomine.com/asic.json?eq=true&factor%5Beq_hr%5D=1000000.0&factor%5Beq_p%5D=0.0",
+        "url": "https://whattomine.com/asic.json?eq=true&factor%5Beq_hr%5D=1000000.0&factor%5Beq_p%5D=0.0&sort=Profit24",
         "key": "coins"
     },
     "lyra2rev2": {
-        "url": "https://whattomine.com/asic.json?lre=true&factor%5Blrev2_hr%5D=1000.0&factor%5Blrev2_p%5D=0.0",
+        "url": "https://whattomine.com/asic.json?lre=true&factor%5Blrev2_hr%5D=1000.0&factor%5Blrev2_p%5D=0.0&sort=Profit24",
         "key": "coins"
     },
     "lyra2z": {
-        "url": "https://whattomine.com/asic.json?l2z=true&factor%5Bl2z_hr%5D=1000.0&factor%5Bl2z_p%5D=0.0",
+        "url": "https://whattomine.com/asic.json?l2z=true&factor%5Bl2z_hr%5D=1000.0&factor%5Bl2z_p%5D=0.0&sort=Profit24",
         "key": "coins"
     },
     "keccak": {
-        "url": "https://whattomine.com/asic.json?kec=true&factor%5Bkec_hr%5D=1000.0&factor%5Bkec_p%5D=0.0",
+        "url": "https://whattomine.com/asic.json?kec=true&factor%5Bkec_hr%5D=1000.0&factor%5Bkec_p%5D=0.0&sort=Profit24",
         "key": "coins"
     },
     "eaglesong": {
-        "url": "https://whattomine.com/asic.json?esg=true&factor%5Besg_hr%5D=1000000.0&factor%5Besg_p%5D=0.0",
+        "url": "https://whattomine.com/asic.json?esg=true&factor%5Besg_hr%5D=1000000.0&factor%5Besg_p%5D=0.0&sort=Profit24",
         "key": "coins"
     },
     "grincuckatoo31": {
-        "url": "https://whattomine.com/asic.json?ct31=true&factor%5Bct31_hr%5D=1000.0&factor%5Bct31_p%5D=0.0",
+        "url": "https://whattomine.com/asic.json?ct31=true&factor%5Bct31_hr%5D=1000.0&factor%5Bct31_p%5D=0.0&sort=Profit24",
         "key": "coins"
     },
     "grincuckatoo32": {
-        "url": "https://whattomine.com/asic.json?ct32=true&factor%5Bct32_hr%5D=1000.0&factor%5Bct32_p%5D=0.0",
+        "url": "https://whattomine.com/asic.json?ct32=true&factor%5Bct32_hr%5D=1000.0&factor%5Bct32_p%5D=0.0&sort=Profit24",
         "key": "coins"
     },
     "neoscrypt": {
-        "url": "https://whattomine.com/coins.json?ns=true&factor%5Bns_hr%5D=1000.0&factor%5Bns_p%5D=0.0",
+        "url": "https://whattomine.com/coins.json?ns=true&factor%5Bns_hr%5D=1000.0&factor%5Bns_p%5D=0.0&sort=Profit24",
+        "key": "coins"
+    },
+    "kawpow": {
+        "url": "https://whattomine.com/coins.json?kpw=true&factor%5Bkpw_hr%5D=1000000.0&factor%5Bkpw_p%5D=0.0&sort=Profit24",
+        "key": "coins"
+    },
+    "beamv3": {
+        "url": "https://whattomine.com/coins.json?eqb=true&factor%5Beqb_hr%5D=1000000.0&factor%5Beqb_p%5D=0.0&sort=Profit24",
+        "key": "coins"
+    },
+    "kheavyhash": {
+        "url": "https://whattomine.com/coins.json?hh=true&factor%5Bhh_hr%5D=1000000.0&factor%5Bhh_p%5D=0.0&sort=Profit24",
+        "key": "coins"
+    },
+    "randomxmonero": {
+        "url": "https://whattomine.com/coins.json?rmx=true&factor%5Brmx_hr%5D=1000000000.0&factor%5Brmx_p%5D=0.0&sort=Profit24",
+        "key": "coins"
+    },
+    "etchash": {
+        "url": "https://whattomine.com/coins.json?e4g=true&factor%5Be4g_hr%5D=1000000.0&factor%5Be4g_p%5D=0.0&sort=Profit24",
+        "key": "coins"
+    },
+    "zhash": {
+        "url": "https://whattomine.com/coins.json?zh=true&factor%5Bzh_hr%5D=1000000.0&factor%5Bzh_p%5D=0.0&sort=Profit24",
         "key": "coins"
     }
+
 }
