@@ -78,7 +78,7 @@ def get_optimal(algo):
     )
 
 
-def raise_order(private_api, order_id, new_price, order_limit, order_algo, nh_algos):
+def change_order(private_api, order_id, new_price, order_limit, order_algo, nh_algos):
     try:
         private_api.set_price_and_limit_hashpower_order(
             order_id, new_price, order_limit, order_algo, nh_algos
@@ -151,7 +151,9 @@ def run(algorithm, coin, watch, config_file, manage):
             # Get the current profitability from WTM for the same algo and cast it to a float too
             if coin is None:
                 coin = "abcxyzfakecoin123"
-            wtm_profitability = float(get_nh_wtm_data(i.get("algorithm"), coin))
+            wtm_profitability = round(
+                float(get_nh_wtm_data(i.get("algorithm"), coin)), 4
+            )
 
             # Print the optimal, profitability
             msg = f"Optimal: {optimal}"
@@ -202,7 +204,8 @@ def run(algorithm, coin, watch, config_file, manage):
                 )
                 msg = f"Expected Profit: {exp_perc_profit}%"
                 out_width_array.append(len(msg))
-                print(msg)
+                color = "green" if exp_perc_profit > 0 else "red"
+                click.secho(msg, fg=color)
                 nh_algos = requests.get(
                     "https://api2.nicehash.com/main/api/v2/mining/algorithms"
                 ).json()
@@ -215,26 +218,31 @@ def run(algorithm, coin, watch, config_file, manage):
                         break
 
                 accepted_speed = float(order_details.get("acceptedCurrentSpeed"))
-                requested_speed = float(order_details.get("limit"))
+                requested_speed = float(order_limit)
 
-                # Check if order is lower than optimal and lower than profitability
+                # Check if order is lower than optimal and lower than profitability or we have no accepted work
                 # Raise the price to be closer to optimal if it's below it
                 if (
-                    order_price < optimal and accepted_speed < (requested_speed / 2)
+                    (order_price < optimal and accepted_speed < (requested_speed / 2))
+                    or (
+                        accepted_speed < (requested_speed / 2)
+                        and seconds_without_work >= without_work_threshold
+                    )
                 ) and order_price < wtm_profitability:
                     new_price = round(order_price + step, 4)
+                    if new_price > wtm_profitability:
+                        new_price = round(wtm_profitability, 4)
                     msg = f"Calculated new price: {new_price}"
                     out_width_array.append(len(msg))
                     print(msg)
-                    if new_price < wtm_profitability:
-                        raise_order(
-                            private_api,
-                            order_id,
-                            new_price,
-                            order_limit,
-                            order_algo,
-                            nh_algos,
-                        )
+                    change_order(
+                        private_api,
+                        order_id,
+                        new_price,
+                        order_limit,
+                        order_algo,
+                        nh_algos,
+                    )
 
                 # If the order price goes above the profitable, try to lower it and start a counter to cancel it (not yet implemented)
                 if (
@@ -266,7 +274,7 @@ def run(algorithm, coin, watch, config_file, manage):
                     out_width_array.append(len(msg))
                     print(msg)
                     if new_price < wtm_profitability:
-                        raise_order(
+                        change_order(
                             private_api,
                             order_id,
                             new_price,
@@ -293,7 +301,7 @@ def run(algorithm, coin, watch, config_file, manage):
                     out_width_array.append(len(msg))
                     print(msg)
                     if new_price < wtm_profitability:
-                        raise_order(
+                        change_order(
                             private_api,
                             order_id,
                             new_price,
@@ -305,11 +313,13 @@ def run(algorithm, coin, watch, config_file, manage):
                         seconds_with_work = 0
                         cooldown = 600
 
-            if accepted_speed == 0.0:
+            usage_percentage = round((accepted_speed / requested_speed) * 100, 2)
+            print(f"Currently using {usage_percentage}% of requested work limit")
+            if usage_percentage < 50:
                 seconds_without_work += watch
                 seconds_with_work = 0
                 print(
-                    f"{seconds_without_work} seconds since we've had accepted shares, will increase order price in {without_work_threshold - seconds_without_work} seconds"
+                    f"{seconds_without_work} seconds since we've had at least half our requested limit, will increase order price in {without_work_threshold - seconds_without_work} seconds"
                 )
             else:
                 seconds_without_work = 0
