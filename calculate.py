@@ -303,8 +303,8 @@ def run(algorithm, coin, watch, config_file, manage):
                             nh_algos,
                         )
 
-                    seconds_with_work = 0
-                    cooldown = 600
+                        seconds_with_work = 0
+                        cooldown = 600
 
             if accepted_speed == 0.0:
                 seconds_without_work += watch
