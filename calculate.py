@@ -215,11 +215,12 @@ def run(algorithm, coin, watch, config_file, manage):
                         break
 
                 accepted_speed = float(order_details.get("acceptedCurrentSpeed"))
+                requested_speed = float(order_details.get("limit"))
 
                 # Check if order is lower than optimal and lower than profitability
                 # Raise the price to be closer to optimal if it's below it
                 if (
-                    order_price < optimal and accepted_speed == 0.0
+                    order_price < optimal and accepted_speed < (requested_speed / 2)
                 ) and order_price < wtm_profitability:
                     new_price = round(order_price + step, 4)
                     msg = f"Calculated new price: {new_price}"
