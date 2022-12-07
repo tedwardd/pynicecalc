@@ -132,7 +132,7 @@ def run(algorithm, coin, watch, config_file, manage):
     seconds_without_work = 0
     # Artificially slow down the rate of raising our order price to be more in-line with the speed at which we can
     # lower it again. This should help smooth out spikes but we might need to make this a user parameter in the future
-    without_work_threshold = 600
+    without_work_threshold = 120
 
     # Nicehash only allows us to lower the price once every 10 minutes
     cooldown = 0
