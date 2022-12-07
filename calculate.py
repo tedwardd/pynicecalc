@@ -162,8 +162,6 @@ def run(algorithm, coin, watch, config_file, manage):
             print(msg)
 
             # Calculate Expected profit percentage and print that too
-            print(optimal)
-            print(wtm_profitability)
             perc_profit = round((1 - (optimal / wtm_profitability)) * 100, 2)
             if perc_profit > 0.0:
                 color = "green"
@@ -309,7 +307,6 @@ def run(algorithm, coin, watch, config_file, manage):
             if accepted_speed == 0.0:
                 seconds_without_work += watch
                 seconds_with_work = 0
-                print(accepted_speed)
                 print(
                     f"{seconds_without_work} seconds since we've had accepted shares, will increase order price in {without_work_threshold - seconds_without_work} seconds"
                 )
