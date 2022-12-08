@@ -48,11 +48,12 @@ def get_nh_wtm_data(algorithm, coin_filter):
     )
     coins = list(raw_data.keys())
     rev_sum = 0.0
-    if coin_filter == "abcxyzfakecoin123":
+    if "abcxyzfakecoin123" in coin_filter:
         return float(raw_data.get(coins[0]).get("btc_revenue24"))
-    for c in coins:
-        if coin_filter.upper() in raw_data.get(c).get("tag"):
-            rev_sum += float(raw_data.get(c).get("btc_revenue24"))
+    for i in coin_filter:
+        for c in coins:
+            if i.upper() in raw_data.get(c).get("tag"):
+                rev_sum += float(raw_data.get(c).get("btc_revenue24"))
 
     return rev_sum
 
@@ -94,7 +95,9 @@ signal.signal(signal.SIGINT, sighandler)
 @click.option(
     "--algorithm", "-a", "algorithm", default=None, multiple=True, required=True
 )
-@click.option("--coin", "-c", "coin", required=False, default=None, multiple=False)
+@click.option(
+    "--coin", "-c", "coin", required=False, default=["abcxyzfakecoin123"], multiple=True
+)
 # The way we're implementing the watch flag feels like a hack
 # It is an optional arg that, if not provided, has a value of 0 which is interpreted as "don't loop"
 # But if you provide the -w flag it then gets a "default" value of 5 unless you provide your own integer
