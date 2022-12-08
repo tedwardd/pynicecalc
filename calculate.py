@@ -30,11 +30,6 @@ def get_nh_data(algorithm):
     )
     algo_positions = [i.get("algorithm") for i in nh_algos]
     req_data = []
-    if len(algorithm) == 0:
-        click.secho("Available algorithms:", bold=True, fg="green")
-        for i in algo_positions:
-            click.secho(f"  - {i}", fg="green")
-        sys.exit(0)
     for algo in algorithm:
         algo = algo.upper()
         req_data.append(nh_algos[algo_positions.index(algo)])
@@ -93,7 +88,7 @@ signal.signal(signal.SIGINT, sighandler)
 
 @click.command()
 @click.option(
-    "--algorithm", "-a", "algorithm", default=None, multiple=True, required=True
+    "--algorithm", "-a", "algorithm", default=None, multiple=True, required=False
 )
 @click.option(
     "--coin", "-c", "coin", required=False, default=["abcxyzfakecoin123"], multiple=True
@@ -105,7 +100,13 @@ signal.signal(signal.SIGINT, sighandler)
 @click.option("--watch", "-w", is_flag=False, flag_value=5, default=0)
 @click.option("--config", "config_file", required=False, default="./config.ini")
 @click.option("--manage", "-m", is_flag=True, required=False)
-def run(algorithm, coin, watch, config_file, manage):
+@click.option("--list", "-l", "algo_list", is_flag=True, required=False)
+def run(algorithm, coin, watch, config_file, manage, algo_list):
+
+    if algo_list:
+        click.secho("Supported Algorithms", bold=True)
+        [click.echo(f"  - {i}") for i in list(query_map.keys())]
+        sys.exit(0)
 
     # Check config path exists
     config = Path(config_file)
@@ -222,6 +223,13 @@ def run(algorithm, coin, watch, config_file, manage):
 
                 accepted_speed = float(order_details.get("acceptedCurrentSpeed"))
                 requested_speed = float(order_limit)
+                if requested_speed == 0:
+                    requested_speed = float(
+                        private_api.get_hashpower_orderbook(order_algo)
+                        .get("stats")
+                        .get("USA")
+                        .get("totalSpeed")
+                    )
 
                 # Check if order is lower than optimal and lower than profitability or we have no accepted work
                 # Raise the price to be closer to optimal if it's below it
