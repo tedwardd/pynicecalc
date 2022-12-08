@@ -234,7 +234,12 @@ def run(algorithm, coin, watch, config_file, manage, algo_list):
                 # Check if order is lower than optimal and lower than profitability or we have no accepted work
                 # Raise the price to be closer to optimal if it's below it
                 if (
-                    (order_price < optimal and accepted_speed < (requested_speed / 2))
+                    (
+                        (optimal - (optimal * 0.02))
+                        <= order_price
+                        <= (optimal + (optimal * 0.02))
+                        and accepted_speed < (requested_speed / 2)
+                    )
                     or (
                         accepted_speed < (requested_speed / 2)
                         and seconds_without_work >= without_work_threshold
@@ -277,8 +282,7 @@ def run(algorithm, coin, watch, config_file, manage, algo_list):
                 # duration and still have no accepted work, raise the price
                 if (
                     order_price < wtm_profitability
-                    and exp_perc_profit > perc_profit
-                    and seconds_without_work > without_work_threshold
+                    and perc_profit + 1 <= exp_perc_profit >= perc_profit + 1
                 ):
                     new_price = round(order_price + step, 4)
                     msg = f"Calculated new price: {new_price}"
@@ -300,8 +304,7 @@ def run(algorithm, coin, watch, config_file, manage, algo_list):
                 # If $step were to take us below optimal, lower it to the optimal but never lower.
                 if (
                     order_price < wtm_profitability
-                    and exp_perc_profit < perc_profit
-                    and seconds_with_work > 300
+                    and perc_profit - 1 <= exp_perc_profit >= perc_profit + 1
                     and cooldown <= 0
                 ):
                     new_price = round(order_price - step, 4)
@@ -326,7 +329,7 @@ def run(algorithm, coin, watch, config_file, manage, algo_list):
 
             usage_percentage = round((accepted_speed / requested_speed) * 100, 2)
             print(f"Currently using {usage_percentage}% of requested work limit")
-            if usage_percentage < 50:
+            if usage_percentage < 25:
                 seconds_without_work += watch
                 seconds_with_work = 0
                 print(
@@ -336,6 +339,7 @@ def run(algorithm, coin, watch, config_file, manage, algo_list):
                 seconds_without_work = 0
                 seconds_with_work += watch
                 print(f"Work accepted for {seconds_with_work} seconds at current price")
+                cooldown = cooldown if cooldown >= 0 else 0
                 print(f"Cooldown Remaining: {cooldown}s")
 
         cooldown -= watch
